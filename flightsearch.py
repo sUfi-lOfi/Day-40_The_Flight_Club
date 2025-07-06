@@ -2,6 +2,9 @@ import os
 import requests
 from dotenv import load_dotenv
 import datetime
+
+from sympy import false
+
 load_dotenv("./variable.env")
 
 class FlightFinder:
@@ -40,30 +43,38 @@ class FlightFinder:
         cheap_flight_list = []
         flight_price_url = "https://test.api.amadeus.com/v2/shopping/flight-offers"
         for row in list:
-            print(f"Printing Price for {row["city"]}")
             flight_price_params = {
-            "originLocationCode" : "LON",
-            "destinationLocationCode" : row["iataCode"],
-            "departureDate" : tomorrow_date,
-            "adults" : 1,
-            'maxPrice': int(row["lowestPrice"]),
-            "currencyCode":"GBP"
+                "originLocationCode": "LON",
+                "destinationLocationCode": row["iataCode"],
+                "departureDate": tomorrow_date,
+                "adults": 1,
+                'maxPrice': int(row["lowestPrice"]),
+                "currencyCode": "GBP",
+                "nonStop": "true"
             }
             flight_price_request = requests.get(flight_price_url,params=flight_price_params,headers=self.authorization_header)
             flight_price_data = flight_price_request.json()
+            print(flight_price_request.text)
             if len(flight_price_data["data"]) == 0:
-                pass
-            else:
-                flight_prices = [float(price["price"]["total"]) for price in flight_price_data["data"] ]
+                flight_price_params['nonStop'] = "false"
+                flight_price_request = requests.get(
+                    flight_price_url,
+                    params=flight_price_params,
+                    headers=self.authorization_header
+                )
+                flight_price_data = flight_price_request.json()
+            if len(flight_price_data["data"])  != 0:
+                flight_prices = [float(price["price"]["total"]) for price in flight_price_data["data"]]
                 lowest_price = min(flight_prices)
                 for flight in flight_price_data["data"]:
                     if float(flight["price"]["total"]) == lowest_price:
                         flight_data = {
-                            "price" : lowest_price,
-                            "from" :flight["itineraries"][0]["segments"][0]["departure"]["iataCode"],
-                            "to" : flight["itineraries"][0]["segments"][0]["arrival"]["iataCode"]
+                            "price": lowest_price,
+                            "from": flight["itineraries"][0]["segments"][0]["departure"]["iataCode"],
+                            "to": flight["itineraries"][0]["segments"][0]["arrival"]["iataCode"]
                         }
                         cheap_flight_list.append(flight_data)
                         break
+
         return cheap_flight_list
 
